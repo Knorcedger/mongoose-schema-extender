@@ -31,11 +31,12 @@ exports.create = function(req, res, mongoose, customSchema, schemaName, save,
 				var options = [{path: populations}];
 				Model.populate(result, options, function(error, result) {
 					callback(req, res, resolve, reject, error, result,
-						'User.create');
+						schemaName + '.create');
 				});
 			}
 
-			callback(req, res, resolve, reject, error, result, 'User.create');
+			callback(req, res, resolve, reject, error, result,
+				schemaName + '.create');
 		});
 	});
 };
@@ -51,7 +52,8 @@ exports.findOne = function(req, res, mongoose, customSchema, schemaName, query,
 		.findOne(query)
 		.populate(populations || '')
 		.exec(function(error, result) {
-			callback(req, res, resolve, reject, error, result, 'User.findOne');
+			callback(req, res, resolve, reject, error, result,
+				schemaName + '.findOne');
 		});
 	});
 };
@@ -69,32 +71,28 @@ exports.findById = function(req, res, mongoose, customSchema, schemaName, id,
 		// .select(getFields(Model, exclude, req.data.activeUser &&
 		// 	req.data.activeUser.type) || '')
 		.exec(function(error, result) {
-			callback(req, res, resolve, reject, error, result, 'User.findById');
+			callback(req, res, resolve, reject, error, result,
+				schemaName + '.findById');
 		});
 	});
 };
-//
-// exports.findByIdAndRemove = function(req, res, customSchema, schemaName, id, populations) {
-// 	reqlog.info(schemaName + '.findByIdAndRemove', id);
-//
-// 	return new Promise(function(resolve) {
-// 		var Model = mongoose.model(schemaName, customSchema);
-//
-// 		Model
-// 		.findByIdAndRemove(id)
-// 		.populate(populations || '')
-// 		.exec(function(error, result) {
-// 			if (!error) {
-// 				var finalResult = callback(req, error, result);
-// 				reqlog.info(schemaName + '.findByIdAndRemove.success', finalResult);
-// 				resolve(finalResult);
-// 			} else {
-// 				reqlog.info('internal server error', error);
-// 				errorHandler.error(req, res, 'INTERNAL_SERVER_ERROR');
-// 			}
-// 		});
-// 	});
-// };
+
+exports.findByIdAndRemove = function(req, res, mongoose, customSchema,
+	schemaName, id, populations) {
+	reqlog.info(schemaName + '.findByIdAndRemove', id);
+
+	return new Promise(function(resolve, reject) {
+		var Model = mongoose.model(schemaName, customSchema);
+
+		Model
+		.findByIdAndRemove(id)
+		.populate(populations || '')
+		.exec(function(error, result) {
+			callback(req, res, resolve, reject, error, result,
+				schemaName + '.findByIdAndRemove');
+		});
+	});
+};
 
 exports.find = function(req, res, mongoose, customSchema, schemaName, query,
 	populations, exclude) {
@@ -108,78 +106,64 @@ exports.find = function(req, res, mongoose, customSchema, schemaName, query,
 		.populate(populations || '')
 		// .select(getFields(Model, exclude, req.data.activeUser && req.data.activeUser.type) || '')
 		.exec(function(error, result) {
-			callback(req, res, resolve, reject, error, result, 'User.find');
+			callback(req, res, resolve, reject, error, result,
+				schemaName + '.find');
 		});
 	});
 };
-//
-// exports.findOneAndUpdate = function(req, res, customSchema, schemaName, query, update, options, populations) {
-// 	reqlog.info(schemaName + '.findOneAndUpdate', query, update);
-//
-// 	return new Promise(function(resolve) {
-// 		var Model = mongoose.model(schemaName, customSchema);
-//
-// 		Model
-// 		.findOneAndUpdate(query, update, options)
-// 		.populate(populations || '')
-// 		.exec(function(error, result) {
-// 			if (!error) {
-// 				var finalResult = callback(req, error, result);
-// 				reqlog.info(schemaName + '.findOneAndUpdate.success', finalResult);
-// 				resolve(finalResult);
-// 			} else {
-// 				reqlog.info('internal server error', error);
-// 				errorHandler.error(req, res, 'INTERNAL_SERVER_ERROR');
-// 			}
-// 		});
-// 	});
-// };
-//
-// exports.findByIdAndUpdate = function(req, res, customSchema, schemaName, id, update, options, populations) {
-// 	reqlog.info(schemaName + '.findByIdAndUpdate', id, update);
-//
-// 	return new Promise(function(resolve) {
-// 		var Model = mongoose.model(schemaName, customSchema);
-//
-// 		Model
-// 		.findByIdAndUpdate(id, update, options)
-// 		.populate(populations || '')
-// 		.exec(function(error, result) {
-// 			if (!error) {
-// 				var finalResult = callback(req, error, result);
-// 				reqlog.info(schemaName + '.findByIdAndUpdate.success', finalResult);
-// 				resolve(finalResult);
-// 			} else {
-// 				reqlog.info('internal server error', error);
-// 				errorHandler.error(req, res, 'INTERNAL_SERVER_ERROR');
-// 			}
-// 		});
-// 	});
-// };
-//
-// // NOTE: mongoose method update returns the number of documents updated
-// // You need to query the object in the service to return it
-// exports.update = function(req, res, customSchema, schemaName, query, update, options) {
-// 	reqlog.info(schemaName + '.update', query, update, options);
-//
-// 	return new Promise(function(resolve) {
-// 		var Model = mongoose.model(schemaName, customSchema);
-//
-// 		Model
-// 		.update(query, update, options)
-// 		.exec(function(error, result) {
-// 			if (!error) {
-// 				var finalResult = callback(req, error, result);
-// 				reqlog.info(schemaName + '.update.success', finalResult);
-// 				resolve(finalResult);
-// 			} else {
-// 				reqlog.info('internal server error', error);
-// 				errorHandler.error(req, res, 'INTERNAL_SERVER_ERROR');
-// 			}
-// 		});
-//
-// 	});
-// };
+
+exports.findOneAndUpdate = function(req, res, mongoose, customSchema,
+	schemaName, query, update, options, populations) {
+	reqlog.info(schemaName + '.findOneAndUpdate', query, update);
+
+	return new Promise(function(resolve, reject) {
+		var Model = mongoose.model(schemaName, customSchema);
+
+		Model
+		.findOneAndUpdate(query, update, options)
+		.populate(populations || '')
+		.exec(function(error, result) {
+			callback(req, res, resolve, reject, error, result,
+				schemaName + '.findOneAndUpdate');
+		});
+	});
+};
+
+// NOTE: mongoose method findByIdAndUpdate returns the object before the update
+exports.findByIdAndUpdate = function(req, res, mongoose, customSchema,
+	schemaName, id, update, options, populations) {
+	reqlog.info(schemaName + '.findByIdAndUpdate', id, update);
+
+	return new Promise(function(resolve, reject) {
+		var Model = mongoose.model(schemaName, customSchema);
+
+		Model
+		.findByIdAndUpdate(id, update, options)
+		.populate(populations || '')
+		.exec(function(error, result) {
+			callback(req, res, resolve, reject, error, result,
+				schemaName + '.findByIdAndUpdate');
+		});
+	});
+};
+
+// NOTE: mongoose method update returns the number of documents updated
+// You need to query the object in the service to return it
+exports.update = function(req, res, mongoose, customSchema, schemaName,
+	query, update, options) {
+	reqlog.info(schemaName + '.update', query, update, options);
+
+	return new Promise(function(resolve, reject) {
+		var Model = mongoose.model(schemaName, customSchema);
+
+		Model
+		.update(query, update, options)
+		.exec(function(error, result) {
+			callback(req, res, resolve, reject, error, result,
+				schemaName + '.update');
+		});
+	});
+};
 
 function callback(req, res, resolve, reject, error, result, action) {
 	if (error) {
