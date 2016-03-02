@@ -4,7 +4,7 @@ var responseBuilder = require('apier-responsebuilder');
 
 // if true, no reject will be done but it will automatically respond
 // with an INTERNAL_SERVER_ERROR
-exports.handleError = true;
+exports.handleErrors = true;
 
 /**
  * Create a new documents
@@ -168,7 +168,7 @@ exports.update = function(req, res, mongoose, customSchema, schemaName,
 function callback(req, res, resolve, reject, error, result, action) {
 	if (error) {
 		reqlog.error('internal server error', error);
-		if (exports.handleError) {
+		if (exports.handleErrors) {
 			responseBuilder.error(req, res, 'INTERNAL_SERVER_ERROR');
 		} else {
 			reject(error);
