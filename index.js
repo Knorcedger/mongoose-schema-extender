@@ -36,7 +36,7 @@ exports.create = function(req, res, mongoose, customSchema, schemaName, save,
 			}
 
 			callback(req, res, resolve, reject, error, result,
-				schemaName + '.create');
+				customSchema.statics.permissions(), schemaName + '.create');
 		});
 	});
 };
@@ -53,13 +53,13 @@ exports.findOne = function(req, res, mongoose, customSchema, schemaName, query,
 		.populate(populations || '')
 		.exec(function(error, result) {
 			callback(req, res, resolve, reject, error, result,
-				schemaName + '.findOne');
+				customSchema.statics.permissions(), schemaName + '.findOne');
 		});
 	});
 };
 
 exports.findById = function(req, res, mongoose, customSchema, schemaName, id,
-	populations, exclude) {
+	populations) {
 	reqlog.info(schemaName + '.findById', id);
 
 	return new Promise(function(resolve, reject) {
@@ -72,7 +72,7 @@ exports.findById = function(req, res, mongoose, customSchema, schemaName, id,
 		// 	req.data.activeUser.type) || '')
 		.exec(function(error, result) {
 			callback(req, res, resolve, reject, error, result,
-				schemaName + '.findById');
+				customSchema.statics.permissions(), schemaName + '.findById');
 		});
 	});
 };
@@ -89,13 +89,14 @@ exports.findByIdAndRemove = function(req, res, mongoose, customSchema,
 		.populate(populations || '')
 		.exec(function(error, result) {
 			callback(req, res, resolve, reject, error, result,
+				customSchema.statics.permissions(),
 				schemaName + '.findByIdAndRemove');
 		});
 	});
 };
 
 exports.find = function(req, res, mongoose, customSchema, schemaName, query,
-	populations, exclude) {
+	populations) {
 	reqlog.info(schemaName + '.find', query);
 
 	return new Promise(function(resolve, reject) {
@@ -107,7 +108,7 @@ exports.find = function(req, res, mongoose, customSchema, schemaName, query,
 		// .select(getFields(Model, exclude, req.data.activeUser && req.data.activeUser.type) || '')
 		.exec(function(error, result) {
 			callback(req, res, resolve, reject, error, result,
-				schemaName + '.find');
+				customSchema.statics.permissions(), schemaName + '.find');
 		});
 	});
 };
@@ -124,6 +125,7 @@ exports.findOneAndUpdate = function(req, res, mongoose, customSchema,
 		.populate(populations || '')
 		.exec(function(error, result) {
 			callback(req, res, resolve, reject, error, result,
+				customSchema.statics.permissions(),
 				schemaName + '.findOneAndUpdate');
 		});
 	});
@@ -142,6 +144,7 @@ exports.findByIdAndUpdate = function(req, res, mongoose, customSchema,
 		.populate(populations || '')
 		.exec(function(error, result) {
 			callback(req, res, resolve, reject, error, result,
+				customSchema.statics.permissions(),
 				schemaName + '.findByIdAndUpdate');
 		});
 	});
@@ -160,12 +163,25 @@ exports.update = function(req, res, mongoose, customSchema, schemaName,
 		.update(query, update, options)
 		.exec(function(error, result) {
 			callback(req, res, resolve, reject, error, result,
-				schemaName + '.update');
+				customSchema.statics.permissions(), schemaName + '.update');
 		});
 	});
 };
 
-function callback(req, res, resolve, reject, error, result, action) {
+/**
+ * Query callback. Handles errors, filters attributes
+ * @method callback
+ * @param  {object}   req         The request object
+ * @param  {object}   res         The response object
+ * @param  {function}   resolve     The promise resolve
+ * @param  {function}   reject      The promise reject
+ * @param  {object}   error       The query error
+ * @param  {object}   result      The query result
+ * @param  {object}   permissions The attributes views permissions
+ * @param  {string}   action      Action used for logging]
+ */
+function callback(req, res, resolve, reject, error, result, permissions,
+	action) {
 	if (error) {
 		reqlog.error('internal server error', error);
 		if (exports.handleErrors) {
@@ -178,61 +194,67 @@ function callback(req, res, resolve, reject, error, result, action) {
 		// check if the result is an array, to iterate it
 		if (Array.isArray(result)) {
 			for (var i = 0, length = result.length; i < length; i++) {
-				result[i] = permissions(result[i]);
+				result[i] = filterAttributes(result[i], permissions);
 			}
 		} else {
-			result = permissions(result);
+			result = filterAttributes(result, permissions);
 		}
 		reqlog.info(action + '.success', result);
 		resolve(result);
 	}
 
-	function permissions(object) {
-		// var filters = object.getFilters();
-		// var userType = req.data.activeUser && req.data.activeUser.type || 'null';
-		// // for unknown reason, the log of object, exists in object._doc
-		// for (var attribute in object._doc) {
-		// 	if (object._doc.hasOwnProperty(attribute)) {
-		// 		if (
-		// 			!filters[attribute] // if this attribute is not defined in filters
-		// 			|| filters[attribute][0] !== 'null' // this attribute is not set as public
-		// 			&& filters[attribute].indexOf(userType) === -1 // this attribute is not available to this userType
-		// 			&& userType !== 'admin' // the user is not admin
-		// 		) {
-		// 			// dont return this attribute
-		// 			delete object._doc[attribute];
-		// 		}
-		// 	}
-		// }
+	/**
+	 * Delete the attributes that the activeUser cant see
+	 * @method filterAttributes
+	 * @param  {object}         object      The result object
+	 * @param  {object}         permissions The permissions object
+	 * @return {object}                     The filtered object
+	 */
+	function filterAttributes(object, permissions) {
+		if (object) {
+			var userType = req.activeUser && req.activeUser.type || 'null';
+			for (var attribute in object._doc) {
+				if (object._doc.hasOwnProperty(attribute)) {
+					// dont return this attribute when:
+					if (!permissions[attribute] || // if this attribute is not defined in permissions
+						permissions[attribute][0] !== 'null' && // this attribute is not set as public
+						permissions[attribute].indexOf(userType) === -1 && // this attribute is not available to this userType
+						userType !== 'admin' // the user is not admin
+					) {
+						delete object._doc[attribute];
+					}
+				}
+			}
+		}
 
 		return object;
 	}
 }
 
-function getFields(Model, requestExclude, userType) {
-	// will store the schema attributes that need to be excluded
-	var exclude = [];
-	// get the schema permissions
-	var permissions = Model.permissions();
-
-	for (var attribute in permissions) {
-		if (
-			permissions[attribute][0] !== 'null' &&
-			userType !== 'admin' &&
-			permissions[attribute].indexOf(userType) === -1
-		) {
-			exclude.push(attribute);
-		}
-	}
-
-	// add the user requested exclude fields
-	exclude = exclude.concat(requestExclude || []);
-
-	exclude = '-' + exclude.join(' -');
-
-	if (exclude) {
-		// debugger;
-	}
-
-	return exclude;
-}
+// function getFields(Model, requestExclude, userType) {
+// 	// will store the schema attributes that need to be excluded
+// 	var exclude = [];
+// 	// get the schema permissions
+// 	var permissions = Model.permissions();
+//
+// 	for (var attribute in permissions) {
+// 		if (
+// 			permissions[attribute][0] !== 'null' &&
+// 			userType !== 'admin' &&
+// 			permissions[attribute].indexOf(userType) === -1
+// 		) {
+// 			exclude.push(attribute);
+// 		}
+// 	}
+//
+// 	// add the user requested exclude fields
+// 	exclude = exclude.concat(requestExclude || []);
+//
+// 	exclude = '-' + exclude.join(' -');
+//
+// 	if (exclude) {
+// 		// debugger;
+// 	}
+//
+// 	return exclude;
+// }
