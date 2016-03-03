@@ -1,7 +1,7 @@
 {
   "name": "mongoose-schema-extender",
   "description": "Adds easy to use methods on Mongoose models",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Knorcedger",
   "bugs": "https://github.com/Knorcedger/mongoose-schema-extender/issues",
   "dependencies": {
